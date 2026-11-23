@@ -1,0 +1,45 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import CatalogGrid from '../../components/CatalogGrid.astro';
+import { getCategories, getProducts } from '../../lib/server/catalog';
+
+const { categoria = '' } = Astro.params;
+const [products, categories] = await Promise.all([getProducts(), getCategories()]);
+const isNews = categoria === 'novidades';
+const cat = categories.find((c) => c.slug === categoria);
+if (!isNews && !cat) return Astro.rewrite('/404');
+
+const list = isNews ? [...products].sort((a, b) => Number(b.isNew) - Number(a.isNew)) : products.filter((p) => p.category === categoria);
+const title = isNews ? 'Novidades' : cat?.label ?? '';
+const intro: Record<string, string> = {
+  novidades: 'Acabadas de chegar. Peças que pedem para ser usadas hoje.',
+  scarpin: 'O clássico absoluto. Bico fino, salto que alonga, presença que fica.',
+  sandalia: 'Leveza com atitude — do dia à noite.',
+  bota: 'Estrutura, couro e poder para os dias frios.',
+  bolsa: 'O acessório que completa a assinatura.',
+  tenis: 'Conforto com o refinamento Santo Salto.',
+};
+---
+
+<BaseLayout title={title} description={intro[categoria] ?? `${title} Santo Salto — calçado feminino com marca própria.`}>
+  <section class="relative pt-14 md:pt-20 pb-6 overflow-hidden">
+    <div class="container-site">
+      <p class="eyebrow mb-4">Coleção</p>
+      <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+        <h1 class="display-xl">{title}<span class="text-brand">.</span></h1>
+        <p class="text-mocha max-w-sm lg:text-right text-pretty">{intro[categoria] ?? 'Curadoria Santo Salto — elegância e poder em cada passo.'}</p>
+      </div>
+      <nav class="mt-10 flex gap-2 overflow-x-auto no-scrollbar" aria-label="Categorias">
+        <a href="/colecao/novidades" class:list={['chip border transition shrink-0', isNews ? 'bg-ink text-bone border-ink' : 'border-taupe/40 text-ink hover:border-ink']}>Novidades</a>
+        {categories.map((c) => (
+          <a href={`/colecao/${c.slug}`} class:list={['chip border transition shrink-0', c.slug === categoria ? 'bg-ink text-bone border-ink' : 'border-taupe/40 text-ink hover:border-ink']}>{c.label}</a>
+        ))}
+      </nav>
+    </div>
+  </section>
+  <section class="container-site pb-10">
+    {list.length > 0 ? <CatalogGrid products={list} /> : (
+      <div class="text-center py-24"><p class="script text-6xl text-gold mb-4">Em breve</p><p class="text-mocha mb-8">Novas peças a caminho desta categoria.</p><a href="/colecao/novidades" class="btn-primary">Ver novidades</a></div>
+    )}
+  </section>
+</BaseLayout>

@@ -1,0 +1,126 @@
+---
+interface Props { freeShippingThreshold: number }
+const { freeShippingThreshold } = Astro.props;
+---
+
+<div id="cart-drawer" class="fixed inset-0 z-[65] pointer-events-none" aria-hidden="true" data-threshold={freeShippingThreshold} transition:persist="cart-drawer">
+  <div data-cart-backdrop class="absolute inset-0 bg-night/50 backdrop-blur-[2px] opacity-0 transition-opacity duration-500"></div>
+  <aside class="cart-panel absolute right-0 inset-y-0 w-full sm:w-[440px] bg-bone shadow-lift flex flex-col translate-x-full transition-transform duration-700" role="dialog" aria-label="Sacola de compras" style="transition-timing-function: var(--ease-silk)">
+    <div class="flex items-center justify-between px-6 h-20 border-b border-taupe/25">
+      <p class="font-display text-2xl text-ink">A sua sacola <span data-cart-qty class="text-brand text-lg align-super"></span></p>
+      <button data-cart-close class="w-10 h-10 grid place-items-center rounded-full hover:bg-blush transition" aria-label="Fechar sacola">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+
+    <div class="px-6 py-4 bg-cream/70 border-b border-taupe/20">
+      <p data-ship-msg class="text-xs text-mocha mb-2"></p>
+      <div class="h-1.5 rounded-full bg-sand overflow-hidden">
+        <div data-ship-bar class="h-full rounded-full bg-gradient-to-r from-brand to-gold transition-[width] duration-700" style="width:0%"></div>
+      </div>
+    </div>
+
+    <ul data-cart-list class="flex-1 overflow-y-auto px-6 divide-y divide-taupe/20"></ul>
+
+    <div data-cart-empty class="flex-1 hidden flex-col items-center justify-center text-center px-10">
+      <p class="script text-6xl text-gold mb-2">Vazia</p>
+      <p class="text-mocha mb-8">Ainda não escolheu o seu próximo par.</p>
+      <a href="/colecao/novidades" class="btn-primary">Ver novidades</a>
+    </div>
+
+    <div data-cart-footer class="border-t border-taupe/25 px-6 py-6 space-y-4 bg-bone">
+      <div class="flex justify-between items-baseline">
+        <span class="eyebrow">Subtotal</span>
+        <span data-cart-subtotal class="font-display text-3xl text-ink"></span>
+      </div>
+      <p class="text-xs text-mocha">Pix com desconto extra · Cartão via Stripe em até 6x. Frete e cupões no checkout.</p>
+      <a href="/checkout" class="btn-primary w-full">Finalizar compra</a>
+    </div>
+  </aside>
+</div>
+
+<style>
+  #cart-drawer.is-open { pointer-events: auto; }
+  #cart-drawer.is-open [data-cart-backdrop] { opacity: 1; }
+  #cart-drawer.is-open .cart-panel { translate: none; }
+</style>
+
+<script>
+  import { cartItems, cartOpen, cartSubtotal, removeFromCart, updateQuantity, type CartItem } from '../stores/cart';
+  import { formatBRL } from '../scripts/ui';
+
+  const root = document.getElementById('cart-drawer');
+  if (root) {
+    const threshold = Number(root.dataset.threshold ?? 499);
+    const list = root.querySelector<HTMLUListElement>('[data-cart-list]')!;
+    const empty = root.querySelector<HTMLElement>('[data-cart-empty]')!;
+    const footer = root.querySelector<HTMLElement>('[data-cart-footer]')!;
+
+    const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c);
+
+    const line = (i: CartItem): string => `
+      <li class="py-5 flex gap-4" data-id="${esc(i.id)}">
+        <a href="/produto/${esc(i.slug)}" class="w-24 h-28 shrink-0 rounded-2xl overflow-hidden bg-cream">
+          <img src="${esc(i.image)}" alt="" class="w-full h-full object-cover" loading="lazy" />
+        </a>
+        <div class="flex-1 min-w-0 flex flex-col">
+          <div class="flex justify-between gap-2">
+            <a href="/produto/${esc(i.slug)}" class="font-display text-xl text-ink leading-tight">${esc(i.name)}</a>
+            <button data-remove class="text-taupe hover:text-brand transition" aria-label="Remover">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+          </div>
+          <p class="text-xs text-mocha mt-1">${esc(i.color)} · Tam. ${esc(i.size)}</p>
+          <div class="mt-auto flex items-center justify-between">
+            <div class="flex items-center rounded-full border border-taupe/40">
+              <button data-dec class="w-8 h-8" aria-label="Diminuir">−</button>
+              <span class="w-6 text-center text-sm">${i.quantity}</span>
+              <button data-inc class="w-8 h-8" aria-label="Aumentar">+</button>
+            </div>
+            <span class="text-sm font-medium text-ink">${formatBRL(i.price * i.quantity)}</span>
+          </div>
+        </div>
+      </li>`;
+
+    const render = (items: readonly CartItem[]): void => {
+      list.innerHTML = items.map(line).join('');
+      const isEmpty = items.length === 0;
+      empty.classList.toggle('hidden', !isEmpty);
+      empty.classList.toggle('flex', isEmpty);
+      list.classList.toggle('hidden', isEmpty);
+      footer.classList.toggle('hidden', isEmpty);
+      const qty = items.reduce((s, i) => s + i.quantity, 0);
+      root.querySelector('[data-cart-qty]')!.textContent = qty ? `(${qty})` : '';
+      const sub = cartSubtotal.get();
+      root.querySelector('[data-cart-subtotal]')!.textContent = formatBRL(sub);
+      const missing = Math.max(0, threshold - sub);
+      root.querySelector('[data-ship-msg]')!.innerHTML = missing === 0
+        ? '<strong class="text-brand">Parabéns!</strong> Ganhou frete grátis ✦'
+        : `Faltam <strong class="text-ink">${formatBRL(missing)}</strong> para frete grátis`;
+      root.querySelector<HTMLElement>('[data-ship-bar]')!.style.width = `${Math.min(100, (sub / threshold) * 100)}%`;
+    };
+
+    list.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      const li = t.closest<HTMLElement>('li[data-id]');
+      if (!li) return;
+      const id = li.dataset.id!;
+      const item = cartItems.get().find((x) => x.id === id);
+      if (!item) return;
+      if (t.closest('[data-remove]')) removeFromCart(id);
+      else if (t.closest('[data-inc]')) updateQuantity(id, item.quantity + 1);
+      else if (t.closest('[data-dec]')) updateQuantity(id, item.quantity - 1);
+    });
+
+    cartItems.subscribe(render);
+    cartOpen.subscribe((open) => {
+      root.classList.toggle('is-open', open);
+      root.setAttribute('aria-hidden', String(!open));
+      document.documentElement.style.overflow = open ? 'hidden' : '';
+    });
+    root.querySelector('[data-cart-backdrop]')?.addEventListener('click', () => cartOpen.set(false));
+    root.querySelector('[data-cart-close]')?.addEventListener('click', () => cartOpen.set(false));
+    root.addEventListener('click', (e) => { if ((e.target as HTMLElement).closest('a[href]')) cartOpen.set(false); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cartOpen.set(false); });
+  }
+</script>

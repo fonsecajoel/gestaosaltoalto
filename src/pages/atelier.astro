@@ -1,0 +1,72 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+const hero = '/img-1757-v2.png';
+const detail1 = '/img-1754-v2.png';
+const detail2 = '/img-1757-v2.png';
+const detail3 = '/img-1754-v2.png';
+---
+
+<BaseLayout title="Santo Salto — Marca Própria" description="Conheça a Santo Salto, marca própria brasileira de calçado e acessórios femininos." image={hero}>
+  <section class="relative h-[80vh] min-h-[600px] overflow-hidden">
+    <img src={hero} alt="Santo Salto" class="absolute inset-0 w-full h-full object-cover" fetchpriority="high" />
+    <div class="absolute inset-0 bg-gradient-to-b from-cocoa/30 via-transparent to-cocoa/60"></div>
+    <div class="relative h-full container-aurelia flex items-end pb-16 lg:pb-24">
+      <div class="text-bone max-w-2xl animate-fade-up">
+        <p class="eyebrow text-gold-soft mb-4">Jundiaí, São Paulo</p>
+        <h1 class="display-xl mb-6" style="color: #F5EFE6;">Santo Salto.</h1>
+        <p class="text-xl text-bone/85 leading-relaxed font-light">Onde cada peça carrega uma escolha intencional.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="py-20 lg:py-28">
+    <div class="container-narrow">
+      <div class="reveal text-center mb-16">
+        <p class="eyebrow mb-4">Nossa marca</p>
+        <h2 class="display-md text-balance">Nossa marca</h2>
+      </div>
+      <div class="reveal text-mocha text-lg leading-[1.85] space-y-6 text-pretty">
+        <p>
+          A Santo Salto começou com uma curadoria de multimarcas, uma escolha que trouxe experiência, repertório e um olhar apurado sobre o que realmente funciona.
+        </p>
+        <p>
+          Mas, com o tempo, ficou claro: escolher não era o suficiente.
+        </p>
+        <p>
+          Carla e Renata queriam mais do que selecionar peças bonitas.
+          Queriam criar algo que traduzisse, de verdade, a essência, o estilo e o padrão que acreditam.
+        </p>
+        <p>
+          Foi assim que nasceu a marca própria da Santo Salto.
+        </p>
+        <p>
+          Uma marca pensada para mulheres que não escolhem no automático.
+          Que entendem o valor dos detalhes, do caimento, da presença.
+        </p>
+        <p>
+          Começamos pelos calçados, nosso ponto de partida, onde tudo ganha forma e atitude.
+          E, naturalmente, evoluímos.
+        </p>
+        <p>
+          Hoje, a Santo Salto também se expressa em bolsas e óculos de sol, ampliando possibilidades sem perder identidade.
+        </p>
+        <p>
+          Cada peça carrega uma escolha intencional:<br/>
+          não seguir tudo o que existe, mas criar o que realmente faz sentido.
+        </p>
+        <p class="font-display text-xl text-ink italic font-light">
+          Porque, no fim, não é só sobre produto.<br/>
+          É sobre se reconhecer no que você usa.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid md:grid-cols-3 gap-1">
+    {[detail1, detail2, detail3].map((src, i) => (
+      <div class="reveal aspect-[3/4] overflow-hidden bg-cream" style={`transition-delay: ${i * 120}ms`}>
+        <img src={src} alt={`Santo Salto detalhe ${i + 1}`} loading="lazy" class="w-full h-full object-cover" />
+      </div>
+    ))}
+  </section>
+</BaseLayout>

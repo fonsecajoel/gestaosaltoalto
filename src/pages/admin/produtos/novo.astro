@@ -1,0 +1,34 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import ProductForm from '../../../components/admin/ProductForm.astro';
+import { supabaseForRequest } from '../../../lib/server/supabase';
+import { productToRow } from '../../../lib/server/catalog';
+import { parseProductForm } from '../../../lib/server/admin/helpers';
+import type { Product } from '../../../lib/types';
+
+const sb = supabaseForRequest(Astro.request, Astro.cookies);
+let error = '';
+let draft: Product | null = null;
+
+if (Astro.request.method === 'POST') {
+  const fd = await Astro.request.formData();
+  const parsed = parseProductForm(fd);
+  if (!parsed.ok) {
+    error = parsed.error;
+  } else {
+    const { data, error: dbErr } = await sb.from('products').insert(productToRow(parsed.value)).select('id').single();
+    if (!dbErr && data) return Astro.redirect(`/admin/produtos/${data.id as string}?msg=${encodeURIComponent('Produto criado.')}`);
+    error = dbErr?.code === '23505' ? 'Já existe um produto com esse slug.' : (dbErr?.message ?? 'Erro ao guardar.');
+    draft = { id: '', ...parsed.value };
+  }
+}
+
+const [{ data: cats }, { data: cols }] = await Promise.all([
+  sb.from('categories').select('slug,label').order('sort_order'),
+  sb.from('collections').select('slug,name').order('sort_order'),
+]);
+---
+<AdminLayout title="Novo produto" active="produtos">
+  <a slot="actions" href="/admin/produtos" class="a-btn a-btn-ghost">← Produtos</a>
+  <ProductForm product={draft} categories={(cats ?? []) as { slug: string; label: string }[]} collections={(cols ?? []) as { slug: string; name: string }[]} error={error} />
+</AdminLayout>

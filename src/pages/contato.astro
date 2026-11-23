@@ -1,0 +1,82 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Contato — Santo Salto" description="Fale com a Santo Salto. Atendimento personalizado para cada cliente.">
+  <section class="pt-14 md:pt-20 pb-12">
+    <div class="container-narrow text-center">
+      <p class="eyebrow mb-4">Fale connosco</p>
+      <h1 class="display-xl text-balance">Estamos à sua disposição.</h1>
+      <p class="text-mocha mt-6 max-w-xl mx-auto leading-relaxed">
+        Atendimento personalizado de segunda a sábado, das 10h às 19h.
+      </p>
+    </div>
+  </section>
+
+  <section class="py-12 lg:py-20">
+    <div class="container-aurelia grid lg:grid-cols-[1fr,1.2fr] gap-12 lg:gap-20">
+      <div class="space-y-10">
+        <div>
+          <p class="eyebrow mb-3">Localização</p>
+          <p class="text-mocha leading-relaxed">
+            Shopping Paineiras<br/>
+            Loja 113<br/>
+            Avenida 9 de Julho, 1155<br/>
+            Chácara Urbana, Jundiaí – São Paulo<br/>
+            13.201-908 · Brasil
+          </p>
+        </div>
+        <div>
+          <p class="eyebrow mb-3">Atendimento</p>
+          <p class="text-mocha leading-relaxed">
+            <a href="mailto:santosaltovendas@gmail.com" class="link-underline">santosaltovendas@gmail.com</a><br/>
+            <a href="https://wa.me/5511910828374" target="_blank" rel="noopener noreferrer" class="link-underline">WhatsApp: +55 11 91082-8374</a>
+          </p>
+        </div>
+      </div>
+
+      <form class="bg-cream rounded-[28px] p-8 lg:p-12 space-y-5" id="contact-form">
+        <input type="text" name="website" tabindex="-1" autocomplete="off" class="hidden" aria-hidden="true" />
+        <p class="eyebrow text-mocha mb-4">Envie a sua mensagem</p>
+        <label class="block">
+          <span class="text-xs uppercase tracking-[0.18em] text-mocha block mb-2">Nome</span>
+          <input required name="name" type="text" class="input" />
+        </label>
+        <label class="block">
+          <span class="text-xs uppercase tracking-[0.18em] text-mocha block mb-2">E-mail</span>
+          <input required name="email" type="email" class="input" />
+        </label>
+        <label class="block">
+          <span class="text-xs uppercase tracking-[0.18em] text-mocha block mb-2">Assunto</span>
+          <select name="subject" class="input">
+            <option>Dúvida sobre produto</option>
+            <option>Acompanhamento de pedido</option>
+            <option>Trocas e devoluções</option>
+            <option>Outro assunto</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="text-xs uppercase tracking-[0.18em] text-mocha block mb-2">Mensagem</span>
+          <textarea required name="message" rows="6" class="input"></textarea>
+        </label>
+        <button type="submit" class="btn-primary w-full">Enviar mensagem</button>
+        <p id="contact-success" class="hidden text-sm text-cocoa text-center">Mensagem enviada. Responderemos em até 24h úteis.</p>
+      </form>
+    </div>
+  </section>
+
+  <script>
+    document.addEventListener('astro:page-load', () => {
+      const form = document.getElementById('contact-form') as HTMLFormElement | null;
+      const msg = document.getElementById('contact-success');
+      form?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(form).entries());
+        const res = await fetch('/api/contact', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data) });
+        const out = (await res.json()) as { ok?: boolean; error?: string };
+        if (msg) { msg.textContent = out.ok ? 'Mensagem enviada. Responderemos em até 24h úteis.' : out.error ?? 'Erro ao enviar.'; msg.classList.remove('hidden'); }
+        if (out.ok) form.reset();
+      });
+    });
+  </script>
+</BaseLayout>

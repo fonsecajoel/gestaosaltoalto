@@ -1,0 +1,49 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import ProductForm from '../../../components/admin/ProductForm.astro';
+import { supabaseForRequest } from '../../../lib/server/supabase';
+import { mapProduct, productToRow, type ProductRow } from '../../../lib/server/catalog';
+import { parseProductForm, str } from '../../../lib/server/admin/helpers';
+import type { Product } from '../../../lib/types';
+
+const { id = '' } = Astro.params;
+const sb = supabaseForRequest(Astro.request, Astro.cookies);
+let error = '';
+let draft: Product | null = null;
+
+if (Astro.request.method === 'POST') {
+  const fd = await Astro.request.formData();
+  if (str(fd, '_action') === 'delete') {
+    const { error: delErr } = await sb.from('products').delete().eq('id', id);
+    if (delErr) return Astro.redirect(`/admin/produtos/${id}?err=${encodeURIComponent(delErr.message)}`);
+    return Astro.redirect(`/admin/produtos?msg=${encodeURIComponent('Produto eliminado.')}`);
+  }
+  const parsed = parseProductForm(fd);
+  if (!parsed.ok) {
+    error = parsed.error;
+  } else {
+    const { error: dbErr } = await sb.from('products').update(productToRow(parsed.value)).eq('id', id);
+    if (!dbErr) return Astro.redirect(`/admin/produtos/${id}?msg=${encodeURIComponent('Alterações guardadas.')}`);
+    error = dbErr.code === '23505' ? 'Já existe um produto com esse slug.' : dbErr.message;
+    draft = { id, ...parsed.value };
+  }
+}
+
+const [{ data: row }, { data: cats }, { data: cols }] = await Promise.all([
+  sb.from('products').select('*').eq('id', id).maybeSingle(),
+  sb.from('categories').select('slug,label').order('sort_order'),
+  sb.from('collections').select('slug,name').order('sort_order'),
+]);
+if (!row) return Astro.redirect(`/admin/produtos?err=${encodeURIComponent('Produto não encontrado.')}`);
+const product = draft ?? mapProduct(row as ProductRow);
+---
+<AdminLayout title={product.name} active="produtos" subtitle={`/${product.slug}`}>
+  <div slot="actions" class="flex gap-2">
+    <a href="/admin/produtos" class="a-btn a-btn-ghost hidden sm:inline-flex">← Produtos</a>
+    <form method="POST" data-confirm="Eliminar este produto definitivamente? As encomendas antigas mantêm o histórico.">
+      <input type="hidden" name="_action" value="delete" />
+      <button class="a-btn a-btn-danger">Eliminar</button>
+    </form>
+  </div>
+  <ProductForm product={product} categories={(cats ?? []) as { slug: string; label: string }[]} collections={(cols ?? []) as { slug: string; name: string }[]} error={error} />
+</AdminLayout>

@@ -1,0 +1,9 @@
+---
+import { isSupabaseConfigured } from '../../lib/env';
+import { supabaseForRequest } from '../../lib/server/supabase';
+
+if (isSupabaseConfigured()) {
+  await supabaseForRequest(Astro.request, Astro.cookies).auth.signOut();
+}
+return Astro.redirect('/admin/login');
+---

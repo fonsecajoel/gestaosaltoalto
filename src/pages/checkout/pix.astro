@@ -1,0 +1,67 @@
+---
+import QRCode from 'qrcode';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getSettings } from '../../lib/server/catalog';
+import { getOrderByToken } from '../../lib/server/order-view';
+import { buildPixPayload } from '../../lib/pix';
+import { formatBRL } from '../../lib/pricing';
+import { isSupabaseConfigured } from '../../lib/env';
+
+const id = Astro.url.searchParams.get('order');
+const token = Astro.url.searchParams.get('t');
+const order = isSupabaseConfigured() ? await getOrderByToken(id, token) : null;
+if (!order) return Astro.redirect('/');
+const settings = await getSettings();
+const payload = buildPixPayload({ key: settings.pixKeyRaw, amount: Number(order.total), merchantName: 'Santo Salto', merchantCity: 'Jundiai', txid: `SS${order.number}` });
+const qrSvg = await QRCode.toString(payload, { type: 'svg', margin: 1, color: { dark: '#3D0604', light: '#FFFFFF' } });
+const wa = `https://wa.me/${settings.whatsapp}?text=${encodeURIComponent(`Olá! Segue o comprovativo Pix da encomenda #${order.number} (${formatBRL(Number(order.total))}).`)}`;
+const paid = order.payment_status === 'paid';
+---
+
+<BaseLayout title={`Pagamento Pix · #${order.number}`} noIndex>
+  <section class="py-14 md:py-20">
+    <div class="container-site max-w-5xl grid lg:grid-cols-2 gap-10 items-center">
+      <div>
+        <p class="eyebrow mb-4">Encomenda #{order.number}</p>
+        <h1 class="display-lg mb-4">{paid ? 'Pagamento recebido.' : <>Quase lá, {order.customer_snapshot.firstName}. <em class="text-brand">Pague com Pix.</em></>}</h1>
+        <p class="text-mocha mb-8 text-pretty">Leia o QR Code na app do seu banco ou use o “Pix Copia e Cola”. O valor já vem preenchido. Assim que confirmarmos o pagamento, a sua encomenda segue para preparação.</p>
+        <ol class="space-y-4 text-sm text-cocoa mb-10">
+          <li class="flex gap-4"><span class="step-n">1</span>Abra a app do banco e escolha Pix → Ler QR Code</li>
+          <li class="flex gap-4"><span class="step-n">2</span>Confirme o valor de <strong>{formatBRL(Number(order.total))}</strong></li>
+          <li class="flex gap-4"><span class="step-n">3</span>Envie o comprovativo pelo WhatsApp para agilizar</li>
+        </ol>
+        <div class="flex flex-wrap gap-3">
+          <a href={wa} target="_blank" rel="noopener noreferrer" class="btn-primary">Enviar comprovativo</a>
+          <a href={`/pedido/${order.id}?t=${order.access_token}`} class="btn-ghost text-ink">Acompanhar encomenda</a>
+        </div>
+      </div>
+      <div class="relative">
+        <div class="absolute inset-0 bg-gradient-to-br from-brand/25 to-gold/25 blur-3xl rounded-full"></div>
+        <div class="relative bg-white rounded-[36px] shadow-lift p-8 md:p-10 text-center border border-taupe/20">
+          <p class="eyebrow mb-1">Total a pagar</p>
+          <p class="font-display text-5xl text-ink mb-6">{formatBRL(Number(order.total))}</p>
+          <div class="mx-auto w-64 h-64 md:w-72 md:h-72 [&>svg]:w-full [&>svg]:h-full" set:html={qrSvg} />
+          <p class="text-xs text-mocha mt-4">Beneficiário: Santo Salto · CNPJ {settings.pixKey}</p>
+          <div class="mt-6 flex items-center gap-2 bg-cream rounded-full p-1.5 pl-4">
+            <code class="flex-1 text-[11px] text-ink truncate text-left" data-pix-code>{payload}</code>
+            <button class="btn-primary !py-2.5 !px-4" data-copy>Copiar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .step-n { flex-shrink: 0; width: 28px; height: 28px; border-radius: 999px; background: var(--color-blush); color: var(--color-brand); display: grid; place-items: center; font-size: 12px; font-weight: 600; }
+</style>
+<script>
+  document.addEventListener('astro:page-load', () => {
+    const btn = document.querySelector<HTMLButtonElement>('[data-copy]');
+    btn?.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(document.querySelector('[data-pix-code]')?.textContent ?? '');
+      btn.textContent = 'Copiado ✓';
+      setTimeout(() => { btn.textContent = 'Copiar'; }, 2200);
+    });
+  });
+</script>
